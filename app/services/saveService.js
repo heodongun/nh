@@ -1,0 +1,46 @@
+const { getDB } = require('../config/db');
+const { ObjectId } = require('mongodb');
+
+/**
+ * 주차 상태 저장 서비스
+ * @param {number} carWitch 차량 위치
+ * @param {string} carNumber 차량 번호
+ * @returns {Object} 처리 결과
+ */
+const saveParkingStatus = async (carWitch, carNumber) => {
+    const db = getDB();
+    const parking = db.collection('parking');
+    const status = db.collection('status');
+    if (carWitch === undefined || carWitch === null || isNaN(carWitch) || !carNumber) {
+        throw new Error("Validation failed");
+    }
+    let ps = await parking.findOne({ _id: new ObjectId('673af526dbfef450a685aed0') });
+    if (!ps) {
+        throw new Error("Database error: Parking data not found");
+    }
+
+    let pss = ps.parkingStatus;
+    if (pss[carWitch] === undefined) {
+        throw new Error("Invalid carWitch position");
+    }
+    pss[carWitch] = true;
+    const updateResult = await parking.updateOne(
+        { _id: new ObjectId('673af526dbfef450a685aed0') },
+        { $set: { parkingStatus: pss } }
+    );
+    if (updateResult.modifiedCount === 0) {
+        throw new Error("Failed to update parking status");
+    }
+    const insertResult = await status.insertOne({
+        carNumber: carNumber,
+        witch: carWitch,
+    });
+    if (insertResult.insertedCount === 0) {
+        throw new Error("Failed to insert data into status collection");
+    }
+    return { code: "SU", message: "Success" };
+};
+
+module.exports = {
+    saveParkingStatus,
+};
